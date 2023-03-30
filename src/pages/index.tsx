@@ -2,19 +2,29 @@ import { type NextPage } from "next";
 import Head from "next/head";
 import type { RouterOutputs } from "~/utils/api";
 import { api } from "~/utils/api";
-import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
+import { SignInButton, useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { LoadingPage } from "~/components/Loading";
+import { useState } from "react";
 
 dayjs.extend(relativeTime);
 
 const CreatePostWizard = () => {
   const { user } = useUser();
+  const ctx = api.useContext();
+  const { mutate, isLoading: isPosting } = api.posts.create.useMutation({
+    onSuccess: () => {
+      setInput("");
+      ctx.posts.getAll.invalidate();
+    },
+  });
+
+  const [input, setInput] = useState("");
   if (!user) return null;
   return (
-    <div className="mr-auto flex gap-3">
+    <div className="flex w-full gap-3">
       <Image
         src={user?.profileImageUrl}
         alt=""
@@ -26,7 +36,17 @@ const CreatePostWizard = () => {
         type="text"
         placeholder="Type something..."
         className="w-full grow bg-transparent"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        disabled={isPosting}
       />
+      <button
+        onClick={() => {
+          mutate({ content: input });
+        }}
+      >
+        Submit
+      </button>
     </div>
   );
 };
@@ -87,12 +107,7 @@ const Home: NextPage = () => {
         <div className="w-full border-x border-slate-300  md:max-w-2xl">
           <div className="flex items-center border-b border-slate-300 p-8">
             {!isSignedIn && <SignInButton />}
-            {isSignedIn && (
-              <>
-                <CreatePostWizard />
-                <SignOutButton />
-              </>
-            )}
+            {isSignedIn && <CreatePostWizard />}
           </div>
           <Feed />
         </div>
